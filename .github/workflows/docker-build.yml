@@ -22,8 +22,18 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y firefox firefox-geckodriver
+          sudo apt-get install -y firefox
           pip install selenium webdriver-manager
+      
+      - name: Setup GeckoDriver
+        run: |
+          GECKO_VERSION=$(curl -sL https://api.github.com/repos/mozilla/geckodriver/releases/latest | grep tag_name | cut -d '"' -f 4)
+          wget https://github.com/mozilla/geckodriver/releases/download/${GECKO_VERSION}/geckodriver-${GECKO_VERSION}-linux64.tar.gz
+          tar -xvzf geckodriver-*-linux64.tar.gz
+          chmod +x geckodriver
+          sudo mv geckodriver /usr/local/bin/
+          echo "Geckodriver version:"
+          geckodriver --version
 
       - name: Download latest Exodus
         run: |
