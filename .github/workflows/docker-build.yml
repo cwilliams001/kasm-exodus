@@ -1,0 +1,72 @@
+name: Build and Push Docker Image
+
+on:
+  schedule:
+    - cron: '0 0 * * 0'  # Run weekly on Sunday at midnight
+  push:
+    branches: [ main ]
+  workflow_dispatch:  # Allow manual triggers
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y firefox
+          pip install selenium webdriver-manager
+
+      - name: Download latest Exodus
+        run: |
+          chmod +x download_exodus.sh
+          ./download_exodus.sh
+          # Get the downloaded file name
+          EXODUS_FILE=$(ls exodus-linux-x64-*.deb | head -n1)
+          echo "EXODUS_FILE=${EXODUS_FILE}" >> $GITHUB_ENV
+          # Extract version for tagging
+          VERSION=$(echo $EXODUS_FILE | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+')
+          echo "EXODUS_VERSION=${VERSION}" >> $GITHUB_ENV
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: |
+            williamsct1/kasm-exodus:latest
+            williamsct1/kasm-exodus:${{ env.EXODUS_VERSION }}
+          build-args: |
+            EXODUS_PACKAGE=${{ env.EXODUS_FILE }}
+
+      - name: Update README
+        run: |
+          echo "# Kasm Exodus Wallet Container" > README.md
+          echo "Current Exodus Version: ${{ env.EXODUS_VERSION }}" >> README.md
+          echo "Last updated: $(date)" >> README.md
+          echo "Docker Hub: [williamsct1/kasm-exodus](https://hub.docker.com/r/williamsct1/kasm-exodus)" >> README.md
+
+      - name: Commit README
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add README.md
+          git commit -m "Update README with version ${{ env.EXODUS_VERSION }}" || echo "No changes to commit"
+          git push || echo "No changes to push"
