@@ -8,7 +8,7 @@ WORKDIR $HOME
 
 ######### Customize Container Here ###########
 
-ARG EXODUS_PACKAGE=exodus-linux-x64-24.41.6.deb
+ARG EXODUS_PACKAGE
 
 COPY ${EXODUS_PACKAGE} /home/kasm-default-profile
 
